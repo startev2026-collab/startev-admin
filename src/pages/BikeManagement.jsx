@@ -14,6 +14,8 @@ export default function BikeManagement() {
     bike_number: '', bike_model: '', bike_type: '', store_id: '',
     daily_price: '', weekly_price: '', monthly_price: '', status: 'available', image_url: '',
   });
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
 
   useEffect(() => {
     Promise.all([api.get('/bikes'), api.get('/stores')])
@@ -34,6 +36,8 @@ export default function BikeManagement() {
   const openCreate = () => {
     setEditing(null);
     setForm({ bike_number: '', bike_model: '', bike_type: '', store_id: '', daily_price: '', weekly_price: '', monthly_price: '', status: 'available', image_url: '' });
+    setImageFile(null);
+    setImagePreview('');
     setShowModal(true);
   };
 
@@ -44,17 +48,31 @@ export default function BikeManagement() {
       store_id: bike.store_id, daily_price: bike.daily_price, weekly_price: bike.weekly_price,
       monthly_price: bike.monthly_price, status: bike.status, image_url: bike.image_url || '',
     });
+    setImageFile(null);
+    setImagePreview(bike.image_url || '');
     setShowModal(true);
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
     try {
+      const formData = new FormData();
+      Object.keys(form).forEach((key) => {
+        formData.append(key, form[key]);
+      });
+      if (imageFile) {
+        formData.append('image', imageFile);
+      }
+
       if (editing) {
-        await api.put(`/bikes/${editing.id}`, form);
+        await api.put(`/bikes/${editing.id}`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
         toast.success('Bike updated');
       } else {
-        await api.post('/bikes', form);
+        await api.post('/bikes', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
         toast.success('Bike added');
       }
       setShowModal(false);
@@ -188,9 +206,29 @@ export default function BikeManagement() {
                     </select>
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Image URL (optional)</label>
-                    <input className="form-input" value={form.image_url}
-                      onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder="Cloudinary URL" />
+                    <label className="form-label">Image (optional)</label>
+                    <div style={{ display: 'flex', gap: 'var(--space-md)', alignItems: 'center' }}>
+                      {imagePreview && (
+                        <img 
+                          src={imagePreview} 
+                          alt="Preview" 
+                          style={{ width: 44, height: 44, borderRadius: 'var(--radius-sm)', objectFit: 'cover', border: '1px solid var(--border)' }} 
+                        />
+                      )}
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="form-input"
+                        style={{ padding: 'var(--space-xs) var(--space-sm)' }}
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            setImageFile(file);
+                            setImagePreview(URL.createObjectURL(file));
+                          }
+                        }} 
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
